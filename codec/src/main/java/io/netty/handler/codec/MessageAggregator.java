@@ -439,7 +439,7 @@ public abstract class MessageAggregator<I, S, C extends ByteBufHolder, O extends
     private void releaseCurrentMessage() {
         if (currentMessage != null) {
             currentMessage.release();
-            currentMessage = null;
+            currentMessage = null ;
             handlingOversizedMessage = false;
         }
     }
