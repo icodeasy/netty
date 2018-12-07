@@ -23,6 +23,10 @@ import java.nio.ByteBuffer;
 
 public class PoolArenaTest {
 
+    /**
+     * 测试规范化内存块大小为2^n
+     * @throws Exception
+     */
     @Test
     public void testNormalizeCapacity() throws Exception {
         PoolArena<ByteBuffer> arena = new PoolArena.DirectArena(null, 0, 0, 9, 999999, 0);
@@ -33,6 +37,10 @@ public class PoolArenaTest {
         }
     }
 
+    /**
+     * 测试规范化内存块大小为2^n, 64为单位
+     * @throws Exception
+     */
     @Test
     public void testNormalizeAlignedCapacity() throws Exception {
         PoolArena<ByteBuffer> arena = new PoolArena.DirectArena(null, 0, 0, 9, 999999, 64);

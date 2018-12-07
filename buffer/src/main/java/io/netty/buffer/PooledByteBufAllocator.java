@@ -30,6 +30,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * https://www.jianshu.com/p/ce7c6f5cb5f6
+ */
 public class PooledByteBufAllocator extends AbstractByteBufAllocator implements ByteBufAllocatorMetricProvider {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PooledByteBufAllocator.class);
@@ -188,6 +191,18 @@ public class PooledByteBufAllocator extends AbstractByteBufAllocator implements 
                 normalCacheSize, DEFAULT_USE_CACHE_FOR_ALL_THREADS, DEFAULT_DIRECT_MEMORY_CACHE_ALIGNMENT);
     }
 
+    /**
+     * nDirectArena 堆外内存个数？
+     * @param preferDirect
+     * @param nHeapArena
+     * @param nDirectArena
+     * @param pageSize
+     * @param maxOrder
+     * @param tinyCacheSize
+     * @param smallCacheSize
+     * @param normalCacheSize
+     * @param useCacheForAllThreads
+     */
     public PooledByteBufAllocator(boolean preferDirect, int nHeapArena,
                                   int nDirectArena, int pageSize, int maxOrder, int tinyCacheSize,
                                   int smallCacheSize, int normalCacheSize,

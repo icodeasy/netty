@@ -75,6 +75,7 @@ public final class ByteBufUtil {
         allocType = allocType.toLowerCase(Locale.US).trim();
 
         ByteBufAllocator alloc;
+        // 设置 JVM参数 -Dio.netty.allocator.type=pooled 设置池化管理策略
         if ("unpooled".equals(allocType)) {
             alloc = UnpooledByteBufAllocator.DEFAULT;
             logger.debug("-Dio.netty.allocator.type: {}", allocType);
