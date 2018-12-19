@@ -1376,6 +1376,11 @@ public abstract class AbstractByteBuf extends ByteBuf {
         checkIndex(index, 1);
     }
 
+    /**
+     *
+     * @param index
+     * @param fieldLength 当前变量类型的长度，比如 int = 4, short = 2
+     */
     protected final void checkIndex(int index, int fieldLength) {
         ensureAccessible();
         checkIndex0(index, fieldLength);

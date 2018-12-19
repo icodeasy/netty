@@ -24,7 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static java.lang.Math.*;
-
+// 维护多个PoolChunk的生命周期
 final class PoolChunkList<T> implements PoolChunkListMetric {
     private static final Iterator<PoolChunkMetric> EMPTY_METRICS = Collections.<PoolChunkMetric>emptyList().iterator();
     private final PoolArena<T> arena;

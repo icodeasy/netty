@@ -338,4 +338,10 @@ class PooledHeapByteBuf extends PooledByteBuf<byte[]> {
     protected final ByteBuffer newInternalNioBuffer(byte[] memory) {
         return ByteBuffer.wrap(memory);
     }
+
+    public static void main(String[] args) {
+        PooledHeapByteBuf pooledHeapByteBuf = PooledHeapByteBuf.newInstance(1);
+        byte b = pooledHeapByteBuf.getByte(1);
+        System.out.println(b);
+    }
 }

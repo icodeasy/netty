@@ -65,12 +65,15 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
 
     @Test
     public void testPooledUnsafeHeapBufferAndUnsafeDirectBuffer() {
+        // 使用 preferDirect 设置一个标志位,在真正分配内存时通过该标志位来决定分配堆外还是堆内内存
         PooledByteBufAllocator allocator = newAllocator(true);
+        // 请求分配默认大小的堆外内存
         ByteBuf directBuffer = allocator.directBuffer();
+
         assertInstanceOf(directBuffer,
                 PlatformDependent.hasUnsafe() ? PooledUnsafeDirectByteBuf.class : PooledDirectByteBuf.class);
         directBuffer.release();
-
+        // 请求分配默认大小的堆内内存
         ByteBuf heapBuffer = allocator.heapBuffer();
         assertInstanceOf(heapBuffer,
                 PlatformDependent.hasUnsafe() ? PooledUnsafeHeapByteBuf.class : PooledHeapByteBuf.class);
@@ -145,7 +148,7 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
 
     @Test
     public void testPoolChunkListMetric() {
-        for (PoolArenaMetric arenaMetric: PooledByteBufAllocator.DEFAULT.metric().heapArenas()) {
+        for (PoolArenaMetric arenaMetric : PooledByteBufAllocator.DEFAULT.metric().heapArenas()) {
             assertPoolChunkListMetric(arenaMetric);
         }
     }
@@ -240,12 +243,12 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
         assertFalse(lists.get(5).iterator().hasNext());
     }
 
-    @Test (timeout = 4000)
+    @Test(timeout = 4000)
     public void testThreadCacheDestroyedByThreadCleaner() throws InterruptedException {
         testThreadCacheDestroyed(false);
     }
 
-    @Test (timeout = 4000)
+    @Test(timeout = 4000)
     public void testThreadCacheDestroyedAfterExitRun() throws InterruptedException {
         testThreadCacheDestroyed(true);
     }
@@ -253,7 +256,7 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
     private static void testThreadCacheDestroyed(boolean useRunnable) throws InterruptedException {
         int numArenas = 11;
         final PooledByteBufAllocator allocator =
-            new PooledByteBufAllocator(numArenas, numArenas, 8192, 1);
+                new PooledByteBufAllocator(numArenas, numArenas, 8192, 1);
 
         final AtomicBoolean threadCachesCreated = new AtomicBoolean(true);
 
@@ -309,7 +312,7 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
     public void testNumThreadCachesWithNoDirectArenas() throws InterruptedException {
         int numHeapArenas = 1;
         final PooledByteBufAllocator allocator =
-            new PooledByteBufAllocator(numHeapArenas, 0, 8192, 1);
+                new PooledByteBufAllocator(numHeapArenas, 0, 8192, 1);
 
         ThreadCache tcache0 = createNewThreadCache(allocator);
         assertEquals(1, allocator.metric().numThreadLocalCaches());
@@ -328,7 +331,7 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
     public void testThreadCacheToArenaMappings() throws InterruptedException {
         int numArenas = 2;
         final PooledByteBufAllocator allocator =
-            new PooledByteBufAllocator(numArenas, numArenas, 8192, 1);
+                new PooledByteBufAllocator(numArenas, numArenas, 8192, 1);
 
         ThreadCache tcache0 = createNewThreadCache(allocator);
         ThreadCache tcache1 = createNewThreadCache(allocator);
@@ -451,6 +454,7 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
     private static final class AllocationThread extends Thread {
 
         private static final int[] ALLOCATION_SIZES = new int[16 * 1024];
+
         static {
             for (int i = 0; i < ALLOCATION_SIZES.length; i++) {
                 ALLOCATION_SIZES[i] = i;
@@ -485,7 +489,7 @@ public class PooledByteBufAllocatorTest extends AbstractByteBufAllocatorTest<Poo
         }
 
         private void releaseBuffers() {
-            for (;;) {
+            for (; ; ) {
                 ByteBuf buf = buffers.poll();
                 if (buf == null) {
                     break;

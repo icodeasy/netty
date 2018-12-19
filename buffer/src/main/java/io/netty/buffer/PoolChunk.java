@@ -18,27 +18,27 @@ package io.netty.buffer;
 
 /**
  * Description of algorithm for PageRun/PoolSubpage allocation from PoolChunk
- *
+ * <p>
  * Notation: The following terms are important to understand the code
  * > page  - a page is the smallest unit of memory chunk that can be allocated
  * > chunk - a chunk is a collection of pages
  * > in this code chunkSize = 2^{maxOrder} * pageSize
- *
+ * <p>
  * To begin we allocate a byte array of size = chunkSize
  * Whenever a ByteBuf of given size needs to be created we search for the first position
  * in the byte array that has enough empty space to accommodate the requested size and
  * return a (long) handle that encodes this offset information, (this memory segment is then
  * marked as reserved so it is always used by exactly one ByteBuf and no more)
- *
+ * <p>
  * For simplicity all sizes are normalized according to PoolArena#normalizeCapacity method
  * This ensures that when we request for memory segments of size >= pageSize the normalizedCapacity
  * equals the next nearest power of 2
- *
+ * <p>
  * To search for the first offset in chunk that has at least requested size available we construct a
  * complete balanced binary tree and store it in an array (just like heaps) - memoryMap
- *
+ * <p>
  * The tree looks like this (the size of each node being mentioned in the parenthesis)
- *
+ * <p>
  * depth=0        1 node (chunkSize)
  * depth=1        2 nodes (chunkSize/2)
  * ..
@@ -46,82 +46,105 @@ package io.netty.buffer;
  * depth=d        2^d nodes (chunkSize/2^d)
  * ..
  * depth=maxOrder 2^maxOrder nodes (chunkSize/2^{maxOrder} = pageSize)
- *
+ * <p>
  * depth=maxOrder is the last level and the leafs consist of pages
- *
+ * <p>
  * With this tree available searching in chunkArray translates like this:
  * To allocate a memory segment of size chunkSize/2^k we search for the first node (from left) at height k
  * which is unused
- *
+ * <p>
  * Algorithm:
  * ----------
  * Encode the tree in memoryMap with the notation
- *   memoryMap[id] = x => in the subtree rooted at id, the first node that is free to be allocated
- *   is at depth x (counted from depth=0) i.e., at depths [depth_of_id, x), there is no node that is free
- *
- *  As we allocate & free nodes, we update values stored in memoryMap so that the property is maintained
- *
+ * memoryMap[id] = x => in the subtree rooted at id, the first node that is free to be allocated
+ * is at depth x (counted from depth=0) i.e., at depths [depth_of_id, x), there is no node that is free
+ * <p>
+ * As we allocate & free nodes, we update values stored in memoryMap so that the property is maintained
+ * <p>
  * Initialization -
- *   In the beginning we construct the memoryMap array by storing the depth of a node at each node
- *     i.e., memoryMap[id] = depth_of_id
- *
+ * In the beginning we construct the memoryMap array by storing the depth of a node at each node
+ * i.e., memoryMap[id] = depth_of_id
+ * <p>
  * Observations:
  * -------------
  * 1) memoryMap[id] = depth_of_id  => it is free / unallocated
  * 2) memoryMap[id] > depth_of_id  => at least one of its child nodes is allocated, so we cannot allocate it, but
- *                                    some of its children can still be allocated based on their availability
+ * some of its children can still be allocated based on their availability
  * 3) memoryMap[id] = maxOrder + 1 => the node is fully allocated & thus none of its children can be allocated, it
- *                                    is thus marked as unusable
- *
+ * is thus marked as unusable
+ * <p>
  * Algorithm: [allocateNode(d) => we want to find the first node (from left) at height h that can be allocated]
  * ----------
  * 1) start at root (i.e., depth = 0 or id = 1)
  * 2) if memoryMap[1] > d => cannot be allocated from this chunk
  * 3) if left node value <= h; we can allocate from left subtree so move to left and repeat until found
  * 4) else try in right subtree
- *
+ * <p>
  * Algorithm: [allocateRun(size)]
  * ----------
  * 1) Compute d = log_2(chunkSize/size)
  * 2) Return allocateNode(d)
- *
+ * <p>
  * Algorithm: [allocateSubpage(size)]
  * ----------
  * 1) use allocateNode(maxOrder) to find an empty (i.e., unused) leaf (i.e., page)
  * 2) use this handle to construct the PoolSubpage object or if it already exists just call init(normCapacity)
- *    note that this PoolSubpage object is added to subpagesPool in the PoolArena when we init() it
- *
+ * note that this PoolSubpage object is added to subpagesPool in the PoolArena when we init() it
+ * <p>
  * Note:
  * -----
  * In the implementation for improving cache coherence,
  * we store 2 pieces of information depth_of_id and x as two byte values in memoryMap and depthMap respectively
- *
+ * <p>
  * memoryMap[id]= depth_of_id  is defined above
  * depthMap[id]= x  indicates that the first node which is free to be allocated is at depth x (from root)
+ * <p>
+ * https://www.jianshu.com/p/c4bd37a3555b 介绍文档
+ * <p>
+ * 内存管理：维护一段连续内存，并负责内存块分配与回收
+ * <p>
+ * 从C内存的手动管理上升到java的自动GC，是历史的巨大进步。然而多年之后，netty的内存实现又曲线的回到了手动管理模式，正印证了马克思哲学观：社会总是在螺旋式前进的，没有永远的最好。的确，就内存管理而言，GC给程序员带来的价值是不言而喻的，不仅大大的降低了程序员的负担，而且也极大的减少了内存管理带来的Crash困扰，不过也有很多情况，可能手动的内存管理更为合适。
+ * <p>
+ * https://kkewwei.github.io/elasticsearch_learning/2018/07/20/Netty-PoolChunk%E5%8E%9F%E7%90%86%E6%8E%A2%E7%A9%B6/
  */
 final class PoolChunk<T> implements PoolChunkMetric {
 
     private static final int INTEGER_SIZE_MINUS_ONE = Integer.SIZE - 1;
-
+    //该PoolChunk所属的PoolArena, 上层PoolArena控制着在哪块PoolArena上分配
     final PoolArena<T> arena;
+    //堆外内存: DirectByteBuffer, 堆内内存 byte[]。
     final T memory;
+    // 是内存池还是非内存池方式
     final boolean unpooled;
     final int offset;
-
+    //PoolChunk的物理视图是连续的PoolSubpage,用PoolSubpage保持，而memoryMap是所有PoolSubpage的逻辑映射，映射为一颗平衡二叉数，用来标记每一个PoolSubpage是否被分配。
     private final byte[] memoryMap;
+    //而depthMap中保存的值表示各个id对应的深度，是个固定值，初始化后不再变更。
     private final byte[] depthMap;
+    //与叶子节点个数相同, 一个叶子节点可以映射PoolSupage中一个元素, 若叶子节点与该元素完成了映射, 说明该叶子节点已经被分配出去了
     private final PoolSubpage<T>[] subpages;
-    /** Used to determine if the requested capacity is equal to or greater than pageSize. */
+    /**
+     * Used to determine if the requested capacity is equal to or greater than pageSize.
+     */
+    //用来判断申请的内存是否超过pageSize大小
     private final int subpageOverflowMask;
+    //每个PoolSubpage的大小，默认为8192个字节（8K)
     private final int pageSize;
+    //pageSize 2的 pageShifts幂
     private final int pageShifts;
+    // 平衡二叉树的深度
     private final int maxOrder;
+    //PoolChunk的总内存大小,chunkSize =   (1<<maxOrder) * pageSize。
     private final int chunkSize;
     private final int log2ChunkSize;
+    // PoolChunk由maxSubpageAllocs个PoolSubpage组成, 默认2048个。
     private final int maxSubpageAllocs;
-    /** Used to mark memory as unusable */
+    /**
+     * Used to mark memory as unusable
+     */
+    //标记为已被分配的值，该值为 maxOrder + 1=12, 当memoryMap[id] = unusable时，则表示id节点已被分配
     private final byte unusable;
-
+    //当前PoolChunk剩余可分配内存, 初始为16M。
     private int freeBytes;
 
     PoolChunkList<T> parent;
@@ -152,20 +175,22 @@ final class PoolChunk<T> implements PoolChunkMetric {
         memoryMap = new byte[maxSubpageAllocs << 1];
         depthMap = new byte[memoryMap.length];
         int memoryMapIndex = 1;
-        for (int d = 0; d <= maxOrder; ++ d) { // move down the tree one level at a time
+        for (int d = 0; d <= maxOrder; ++d) { // move down the tree one level at a time
             int depth = 1 << d;
-            for (int p = 0; p < depth; ++ p) {
+            for (int p = 0; p < depth; ++p) {
                 // in each level traverse left to right and set value to the depth of subtree
                 memoryMap[memoryMapIndex] = (byte) d;
                 depthMap[memoryMapIndex] = (byte) d;
-                memoryMapIndex ++;
+                memoryMapIndex++;
             }
         }
 
         subpages = newSubpageArray(maxSubpageAllocs);
     }
 
-    /** Creates a special chunk that is not pooled. */
+    /**
+     * Creates a special chunk that is not pooled.
+     */
     PoolChunk(PoolArena<T> arena, T memory, int size, int offset) {
         unpooled = true;
         this.arena = arena;
@@ -272,7 +297,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
      */
     private int allocateNode(int d) {
         int id = 1;
-        int initial = - (1 << d); // has last d bits = 0 and rest all = 1
+        int initial = -(1 << d); // has last d bits = 0 and rest all = 1
         byte val = value(id);
         if (val > d) { // unusable
             return -1;
@@ -381,7 +406,7 @@ final class PoolChunk<T> implements PoolChunkMetric {
             byte val = value(memoryMapIdx);
             assert val == unusable : String.valueOf(val);
             buf.init(this, handle, runOffset(memoryMapIdx) + offset, reqCapacity, runLength(memoryMapIdx),
-                     arena.parent.threadCache());
+                    arena.parent.threadCache());
         } else {
             initBufWithSubpage(buf, handle, bitmapIdx, reqCapacity);
         }
@@ -401,8 +426,8 @@ final class PoolChunk<T> implements PoolChunkMetric {
         assert reqCapacity <= subpage.elemSize;
 
         buf.init(
-            this, handle,
-            runOffset(memoryMapIdx) + (bitmapIdx & 0x3FFFFFFF) * subpage.elemSize + offset,
+                this, handle,
+                runOffset(memoryMapIdx) + (bitmapIdx & 0x3FFFFFFF) * subpage.elemSize + offset,
                 reqCapacity, subpage.elemSize, arena.parent.threadCache());
     }
 

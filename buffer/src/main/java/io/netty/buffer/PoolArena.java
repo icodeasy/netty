@@ -27,7 +27,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Math.max;
-
+// Arena本身是指一块区域，在内存管理中，Memory Arena是指内存中的一大块连续的区域，
+// PoolArena就是Netty的内存池实现类。
 abstract class PoolArena<T> implements PoolArenaMetric {
     static final boolean HAS_UNSAFE = PlatformDependent.hasUnsafe();
 

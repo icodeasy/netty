@@ -15,7 +15,7 @@
  */
 
 package io.netty.buffer;
-
+// 将page分为更小的块进行维护
 final class PoolSubpage<T> implements PoolSubpageMetric {
 
     final PoolChunk<T> chunk;

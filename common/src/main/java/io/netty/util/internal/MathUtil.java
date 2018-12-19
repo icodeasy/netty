@@ -92,4 +92,9 @@ public final class MathUtil {
     public static int compare(long x, long y) {
         return (x < y) ? -1 : (x > y) ? 1 : 0;
     }
+
+    public static  void main(String[] args) {
+        // output 1
+        System.out.println(safeFindNextPositivePowerOfTwo(-100));
+    }
 }
